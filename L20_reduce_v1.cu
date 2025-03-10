@@ -5,16 +5,16 @@
 
 // v1: use position operator replace % 
 
-template<int blockSize>
-__global__ void reduce_v0(const int* d_in, int* d_out, size_t n)
+template<int blockSize> // blockSize as template arg use for static shared memory size apply during compile phase
+__global__ void reduce_v1(const int* d_in, int* d_out, size_t n)
 {   
     int tid = threadIdx.x;
     int gtid = threadIdx.x + blockIdx.x * blockSize; // global thread idx
     __shared__ float smem[blockSize]; // declare shared memory 
-    smem[tid] = d_in[gtid]; // load data into shared memory coresponding to thread gtid
+    smem[tid] = d_in[gtid]; // load data into shared memory corresponding to thread gtid
     __syncthreads(); // synchronize all threads in a block
 
-    for(int idx = 1; i < blockIdx.x; idx*=2)
+    for(int idx = 1; idx < blockIdx.x; idx*=2)
     {
         // method 1
         // here is no warp divergent, because no use threads is idle 
@@ -25,7 +25,7 @@ __global__ void reduce_v0(const int* d_in, int* d_out, size_t n)
         // method 2:
         // unsigned s = 2 * idx * tid;
         // if(s < blockDim.x)
-        //     seme[s] += seme[s + idx];
+        //     smem[s] += smem[s + idx];
 
         syncthreads();
     }
@@ -87,7 +87,7 @@ int main()
     cudaEventCreate(&stop);
     cudaEventRecord(start);
     // allocate 1 block, 1 thread
-    reduce_base<<<1, 1>>>(d_in, d_out, N);
+    reduce_v1<blockSize><<<grid, block>>>(d_in, d_out, N);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

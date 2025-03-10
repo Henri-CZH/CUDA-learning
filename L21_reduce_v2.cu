@@ -3,18 +3,18 @@
 #include <stdio.h>
 #include <iostream>
 
-// v2: eliminate bank conflict
+// v2: eliminate bank conflict by one tid operating 2 data per time
 
-template<int blockSize>
-__global__ void reduce_v0(const int* d_in, int* d_out, size_t n)
+template<int blockSize> // blockSize as template arg use for static shared memory size apply during compile phase
+__global__ void reduce_v2(const int* d_in, int* d_out, size_t n)
 {   
     int tid = threadIdx.x;
     int gtid = threadIdx.x + blockIdx.x * blockSize; // global thread idx
     __shared__ float smem[blockSize]; // declare shared memory 
-    smem[tid] = d_in[gtid]; // load data into shared memory coresponding to thread gtid
+    smem[tid] = d_in[gtid]; // load data into shared memory corresponding to thread gtid
     __syncthreads(); // synchronize all threads in a block
 
-    for(int idx = blockDim.x / 2; i > 0; idx >>=2)
+    for(int idx = blockDim.x / 2; idx > 0; idx >>=1)
     {
         // method 1:
         // here is no warp divergent, because no use threads is idle
@@ -26,9 +26,9 @@ __global__ void reduce_v0(const int* d_in, int* d_out, size_t n)
         // here is bank conflict, because there is 32 bank memory, tid0 operate sdata[0]:bank0 and sdata[1]:bank1, tid16 operate sdata[32]:bank0 and sdata[33]:bank1;
         // unsigned s = 2 * idx * tid;
         // if(s < blockDim.x)
-        //     seme[s] += seme[s + idx];
+        //     smem[s] += smem[s + idx];
         if(tid < idx)
-            seme[tid] += seme[tid + idx];
+            smem[tid] += smem[tid + idx]; // tid0 operate smem[0]<-smem[0] + smem[128]; all tid > 128 in a block are idle
         
         syncthreads();
     }
@@ -90,7 +90,7 @@ int main()
     cudaEventCreate(&stop);
     cudaEventRecord(start);
     // allocate 1 block, 1 thread
-    reduce_base<<<1, 1>>>(d_in, d_out, N);
+    reduce_v2<<<grid, block>>>(d_in, d_out, N);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
