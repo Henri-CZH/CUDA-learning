@@ -9,18 +9,24 @@ template<int blockSize>
 __global__ void reduce_v0(const int* d_in, int* d_out, size_t n)
 {   
     int tid = threadIdx.x;
-    int gtid = threadIdx.x + blockIdx.x * blockSize; // globaql thread idx
+    int gtid = threadIdx.x + blockIdx.x * blockSize; // global thread idx
     __shared__ float smem[blockSize]; // declare shared memory 
     smem[tid] = d_in[gtid]; // load data into shared memory coresponding to thread gtid
     __syncthreads(); // synchronize all threads in a block
 
     for(int idx = 1; i < blockIdx.x; idx*=2)
     {
+        // method 1
         // here is no warp divergent, because no use threads is idle 
-        //if(tid % (2 * idx) == 0)
+        // if(tid % (2 * idx) == 0)
         if(tid & (2 * idx - 1) == 0)
             smem[tid]+= d_in[tid + idx];
         
+        // method 2:
+        // unsigned s = 2 * idx * tid;
+        // if(s < blockDim.x)
+        //     seme[s] += seme[s + idx];
+
         syncthreads();
     }
 
