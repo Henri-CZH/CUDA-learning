@@ -62,7 +62,7 @@ __global__ void reduce_v4(const int* d_in, int* d_out, size_t n)
         if(tid > idx)
             smem[tid] += smem[tid + idx]; // tid0 operate smem[0]<-smem[0] + smem[128], smem[0]<-d_in[0] + d_in[256] + d_in[128] + d_in[384] all tid > 128 in a block are idle
         
-        syncthreads();
+        __syncthreads();
     }
 
     // last warp in a block independently calc reduce 
