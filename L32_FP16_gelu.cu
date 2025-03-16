@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <iostream>
 
+// FP16 version
+// y = 0.5 * x * (1 + tanh(alpha * (x + beta * x^3)))
+
 template<typename T, int vec_size>
 struct alignas(sizeof(T) * vec_size) AlignedVector{
     T val[vec_size];
@@ -24,8 +27,8 @@ struct GeluFunctor{
         return half * x * (one + tanh(tanh_in));
     }
 
-    // half_intrinstic
-    __device__ void half_intrinstic(__half* x, const __half* y){
+    // vectorization intrinsic
+    __device__ void half_intrinsic(__half* x, const __half* y){
         static constexpr float alpha_ = static_cast<T>(0.79788456080);
         static constexpr float beta_ = static_cast<T>(0.0447149984);
 
@@ -44,8 +47,8 @@ struct GeluFunctor{
     }
 }
 
-template<int vec_size, bool apply_intrinstic>
-__global__ void fused_gelu_cuda_kernel(const __half *d_in, __half *d_y, int N){
+template<int vec_size, bool apply_intrinsic>
+__global__ void fused_gelu_cuda_kernel(const __half *d_in, __half *d_out, int N){
     int offset = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x) * vec_size;
     int stirde = static_cast<int>(gridDim.x * blockDim.x) * vec_size;
 
@@ -59,10 +62,10 @@ __global__ void fused_gelu_cuda_kernel(const __half *d_in, __half *d_y, int N){
             y_reg[0] = gelu_fwd(in[0]);
         }
         else{
-            if(apply_intrinstic){
-                // vector intrinstic
+            if(apply_intrinsic){
+                // vectorization intrinsic
                 for(int i = 0; i < vec_size; i += 2){
-                    gelu_fwd.half_intrinstic(in + i, y + offset + i);
+                    gelu_fwd.half_intrinsic(in + i, d_out + offset + i);
                 }
             }
             else{
@@ -74,8 +77,8 @@ __global__ void fused_gelu_cuda_kernel(const __half *d_in, __half *d_y, int N){
         }
     }
 
-    if(!apply_intrinstic){
-        *reinterpret_cast<ArrT*>(y + offset) = *reinterpret_cast<ArrT*>(y_reg); // return to GPU mem
+    if(!apply_intrinsic){
+        *reinterpret_cast<ArrT*>(d_out + offset) = *reinterpret_cast<ArrT*>(y_reg); // return to GPU mem
     }
 }
 
@@ -84,6 +87,7 @@ int main()
 {
     constexpr int N = 1000;
     float milliseconds = 0;
+    constexpr int vec_size_ = 1;
     cudaSetDevice(0);
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);
@@ -111,7 +115,7 @@ int main()
 
     if(N % 8 == 0 && is_aligned(d_x, kAlignment) && is_aligned(d_y, kAlignment)){
         int block_size = 256;
-        int grid_size = (N + block_size - 1) / block_size;
+        int grid_size = (N / vec_size_ + block_size - 1) / block_size;
         dim3 grid(grid_size);
         dim3 block(block_size); // thrad size
         block = std::min(block, cudaDeviceProp.maxThreadPerBlock);
@@ -121,7 +125,7 @@ int main()
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
         cudaEventRecord(start);
-        fused_gelu_cuda_kernel<1, false><<<grid, block>>>(dx, dy, N);
+        fused_gelu_cuda_kernel<vec_size_, false><<<grid, block>>>(dx, dy, N);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&milliseconds, start, stop);
