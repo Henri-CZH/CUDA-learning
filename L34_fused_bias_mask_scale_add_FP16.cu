@@ -52,7 +52,7 @@ __global__ void fused_bias_add<bias_size>(FUNCTOR functor, T *d_x, T *d_y, T d_b
 }
 
 
-bool check_right(__half *y, __half *groundTrue; const int N){
+bool check_right(__half *y, __half *groundTrue, const int N){
     for(int i = 0; i < N; i++){
         if(y[i] != groundTrue[i]){
             printf("y[%d]: %f \n", i, y[i]);

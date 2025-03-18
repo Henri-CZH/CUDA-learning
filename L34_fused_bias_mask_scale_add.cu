@@ -58,7 +58,7 @@ __global__ void fused_bias_add_vectorization<bias_size>(FUNCTOR functor, T *d_x,
 }
 
 
-bool check_right(float *y, float *groundTrue; const int N){
+bool check_right(float *y, float *groundTrue, const int N){
     for(int i = 0; i < N; i++){
         if(y[i] != groundTrue[i]){
             printf("y[%d]: %f \n", i, y[i]);
