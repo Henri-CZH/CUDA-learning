@@ -54,7 +54,7 @@ target_link_libraries(
     -lcudadevrt)
 #3
 add_executable(L7_vec_add
-    L7_vec_add.cu.cu
+    L7_vec_add.cu
 )
 target_link_libraries(
     L7_vec_add PUBLIC
@@ -101,7 +101,7 @@ add_executable(L21_reduce_v2
     L21_reduce_v2.cu
 )
 target_link_libraries(
-    L21_reduce_v2.cu PUBLIC
+    L21_reduce_v2 PUBLIC
     -lcudart
     -lcudadevrt)
 add_executable(L22_reduce_v3
@@ -111,7 +111,7 @@ target_link_libraries(
     L22_reduce_v3 PUBLIC
     -lcudart
     -lcudadevrt)
-add_executable(L23_reduce_v4.cu
+add_executable(L23_reduce_v4
     L23_reduce_v4.cu
 )
 target_link_libraries(

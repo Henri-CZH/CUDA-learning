@@ -6,7 +6,7 @@
 // v2: eliminate bank conflict by one tid operating 2 data per time
 
 template<int blockSize> // blockSize as template arg use for static shared memory size apply during compile phase
-__global__ void reduce_v2(const int* d_in, int* d_out, size_t n)
+__global__ void reduce_v2(const int* d_in, int* d_out, const int n)
 {   
     int tid = threadIdx.x;
     int gtid = threadIdx.x + blockIdx.x * blockSize; // global thread idx
@@ -30,7 +30,7 @@ __global__ void reduce_v2(const int* d_in, int* d_out, size_t n)
         if(tid < idx)
             smem[tid] += smem[tid + idx]; // tid0 operate smem[0]<-smem[0] + smem[128]; all tid > 128 in a block are idle
         
-        syncthreads();
+        __syncthreads();
     }
 
     // all (N / blockSize) block's threads have finished
@@ -40,7 +40,7 @@ __global__ void reduce_v2(const int* d_in, int* d_out, size_t n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
+    float res = 0;
     for(int i = 0; i < n; i++)
         res += out[i];
 
@@ -53,7 +53,7 @@ bool checkResult(int* out, int groudtruth, int n)
 int main()
 {
     float milliseconds = 0;
-    const int N = 25600000;
+    constexpr int N = 25600000;
     cudaSetDevice(0);
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);
@@ -90,7 +90,7 @@ int main()
     cudaEventCreate(&stop);
     cudaEventRecord(start);
     // allocate 1 block, 1 thread
-    reduce_v2<<<grid, block>>>(d_in, d_out, N);
+    reduce_v2<256><<<grid, block>>>(d_in, d_out, N);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

@@ -51,7 +51,7 @@ int main()
     float *B_g;
     float *C_g;
 
-    float miliseconds = 0; // store GPU execution time slot
+    float milliseconds = 0; // store GPU execution time slot
 
     //initilize data
     for(uint32_t i = 0; i < ARRAY_SIZE; i++)

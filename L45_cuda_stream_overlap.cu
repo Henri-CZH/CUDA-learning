@@ -2,6 +2,7 @@
 #include <cuda.h>
 #include "cuda_runtime.h"
 #include <cmath>
+#include <vector>
 
  // cuda stream overlap
 
@@ -49,17 +50,17 @@ int main(){
     dim3 block(block_size); // 
 
     // define cuda stream
-    vector<cudaStream_t> streams(num_streams);
+    std::vector<cudaStream_t> streams(num_streams);
     
-    for(int i = 0; i < num_per_stream; i++){
-        cudaStreamCreate(&streams[i]);
+    for(auto& stream : streams){
+        cudaStreamCreate(&stream);
     }
 
     // launch cuda kernel
     for(int i = 0; i < num_streams; i++){
 
         // launch each independent cuda kernel on each stream
-        add<<<grid, block, streams[i]>>>(d_buffers[i], N);
+        add<<<grid, block, 0, streams[i]>>>(d_buffers[i], N);
     }
 
     for(auto stream : streams){
@@ -75,7 +76,7 @@ int main(){
     bool is_right = check_right(h_z_cpu, d_buffers[0], N);
 
     // destroy stream
-    for(int = 1; i < num_streams; i++){
+    for(int i = 1; i < num_streams; i++){
         cudaStreamDestroy(streams[i]);
         printf("destroying %d th stream\n", i);
     }

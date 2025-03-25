@@ -7,7 +7,7 @@
 template<typename T, int vec_size>
 struct alignas(sizeof(T) * vec_size) VectorType{
     T val[vec_size];
-}
+};
 
 // warp reduce operator
 template<template<typename> class ReduceOp, typename T, const int warp_width>
@@ -23,7 +23,7 @@ struct MaxOp{
     __device__ __forceinline__ T operator()(const T& a, const T& b){
         return max(a, b);
     }
-}
+};
 
 // sum op
 template<typename T>
@@ -31,7 +31,7 @@ struct SumOp{
     __device__ __forceinline__ T operator()(const T& a, const T& b){
         return a + b;
     }
-}
+};
 
 template<typename T>
 __inline__ __device__ T exp_operator(T val){
@@ -62,7 +62,7 @@ __device__ void store(const float *src, float *dst, const int rows, const int co
 
 // softmax kernel
 template<const int row_per_thread, const int pack_size, const int col_per_thread, const int warp_width>
-__global__ void softmax(const float *d_src, float *d_dst, const int rows, const int cols){
+__global__ void softmax_kernel(const float *d_src, float *d_dst, const int rows, const int cols){
     constexpr int num_pack = col_per_thread / pack_size;
 
     // define thread id;
@@ -182,7 +182,7 @@ int main(){
     float *groundTrue = new float[N];
 
     // compute groundTrue by CPU
-    softmaxCPU(src, groundTrue, 1000, 1024);
+    softmax_CPU(h_src, groundTrue, 1000, 1024);
 
     // define and allocate GPU memory for src, dst
     float *d_src, *d_dst;
@@ -205,7 +205,7 @@ int main(){
     cudaEventRecord(start);
 
     // launch cuda kernel
-    softmax_kernel<<<grid, block>>>(d_src, d_dst, 1000, 1024);
+    softmax_kernel<1, 1, 32, 32><<<grid, block>>>(d_src, d_dst, 1000, 1024);
 
     // stop to record GPU execution time
     cudaEventRecord(stop);
@@ -213,7 +213,7 @@ int main(){
     cudaEventElapsedTime(&milliseconds, start, stop);
 
     // copy d_dst from GPU memory to CPU memory
-    cudaMemcpy(h_dst, d_dst, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_dst, d_dst, N * sizeof(float), cudaMemcpyDeviceToHost);
 
     // check result
     bool is_right = check_right(d_dst, groundTruth, N);
@@ -232,7 +232,7 @@ int main(){
     cudaFree(d_dst);
     delete h_src;
     h_src = nullptr;
-    delete h_dst
+    delete h_dst;
     h_dst = nullptr;
     delete groundTrue;
     groundTrue = nullptr;

@@ -9,11 +9,11 @@ __global__ void vec_add(float* dx, float* dy, float* dz, int N)
     // 2D grid
     int idx = (blockDim.x * (blockIdx.x + blockIdx.y * gridDim.x) + threadIdx.x);
     // 1D grid
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    // int idx = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(idx < N)
     {
-        hz[idx] = hy[idx] + hx[idx];
+        dz[idx] = dy[idx] + dx[idx];
     }
 }
 
@@ -34,7 +34,7 @@ int main()
     int bs = 256; // num of thread
 
     // 2D grid
-    int s = ceil(sqrt((N + bs - 1.) / bs))
+    int s = ceil(sqrt((N + bs - 1.) / bs));
     dim3 grid(s, s);
 
     // 1D grid

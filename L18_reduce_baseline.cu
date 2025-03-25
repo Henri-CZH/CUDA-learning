@@ -63,7 +63,7 @@ int main()
     cudaEventCreate(&stop);
     cudaEventRecord(start);
     // allocate 1 block, 1 thread
-    reduce_base<<<grid, block>>>(d_in, d_out, N);
+    reduce_baseline<<<grid, block>>>(d_in, d_out, N);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

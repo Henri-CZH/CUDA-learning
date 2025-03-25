@@ -37,7 +37,7 @@ __device__ void warpSharedMemReduce(volatile float* smem, int tid)
 }
 
 template<int blockSize> // blockSize as template arg use for static shared memory size apply during compile phase
-__global__ void reduce_v5(const int* d_in, int* d_out, size_t n)
+__global__ void reduce_v6(const int* d_in, int* d_out, size_t n)
 {   
     int tid = threadIdx.x;
     int gtid = threadIdx.x + blockIdx.x * blockDim.x; // global thread idx, here can use blockSize or blockDim.x 
@@ -122,7 +122,7 @@ __global__ void reduce_v5(const int* d_in, int* d_out, size_t n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
+    float res = 0;
     for(int i = 0; i < n; i++)
         res += out[i];
 

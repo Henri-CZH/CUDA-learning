@@ -10,7 +10,7 @@ __global__ void sum(float *x)
     unsigned int block_id = blockIdx.x;
     unsigned int local_tid = threadIdx.x;
 
-    printf("current block=%d, thread id in current block =%d, global thread id=%d\n", block_id, local_tid, global_tid);
+    printf("current block=%d, thread %d in current block, global thread id=%d\n", block_id, local_tid, global_tid);
     x[global_tid] += 1;
 }
 
@@ -34,7 +34,7 @@ int main()
     cudaMemcpy(dx, hx, nbytes, cudaMemcpyHostToDevice);
 
     // launch GPU kernel
-    sum<<1, N>>(dx);
+    sum<<<1, N>>>(dx);
 
     // copy data to CPU, i.e. synchronize COU and GPU
     cudaMemcpy(hx, dx, nbytes, cudaMemcpyDeviceToHost);

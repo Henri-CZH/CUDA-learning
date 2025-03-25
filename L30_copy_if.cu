@@ -11,7 +11,7 @@ __global__ void naive_filter_k(const int* d_in, int* d_out, int *num_res, int n)
     {  
         if(i < n && d_in[i] > 0)
         {
-            d_out[atomicAdd(num_res, 1)] = src[i];
+            d_out[atomicAdd(num_res, 1)] = d_in[i];
         }
     }
 }
@@ -20,10 +20,10 @@ __global__ void naive_filter_k(const int* d_in, int* d_out, int *num_res, int n)
 __global__ void block_filter_k(const int* d_in, int* d_out, int *num_res, int n)
 {
     __shared__ int ln; // number of d_in[i] > 0 for current block
-    int gtid = threadIdx.x + blockIdx.x * blockDim.x
+    int gtid = threadIdx.x + blockIdx.x * blockDim.x;
     int total_thread_num = gridDim.x * blockDim.x;
 
-    for(int i = gtid; i < n, i+= total_thread_num)
+    for(int i = gtid; i < n; i+= total_thread_num)
     {
         // initialize in first thread 
         if(threadIdx.x == 0)
@@ -62,13 +62,13 @@ __device__ int atomicAggInc(int *count)
     unsigned int change = __popc(active_mask); // number of active thread in a warp
     unsigned int lane_mask; 
     asm("mov.u32 %0, %%lanemask_lt;" : "=r"(lane_mask)); // mask of thread ID is less than current thread ID: current threadID = 3->lane_mask = 0111;
-    unsigned int rank = __popc(ative_mask & lane_mask); // number of active thread whose thread ID is less than current thread;
+    unsigned int rank = __popc(active_mask & lane_mask); // number of active thread whose thread ID is less than current thread;
     unsigned int warp_res;
     if(rank == 0)
     {
         warp_res = atomicAdd(count, change); // compute global offset of warp
     }
-    __shfl_sync(active_mask, res, leader_idx); // broadcast warp_res of leader thread to each active thread in a warp
+    __shfl_sync(active_mask, warp_res, leader_idx); // broadcast warp_res of leader thread to each active thread in a warp
     return warp_res + rank; // global offset + local offset
 }
 
@@ -81,10 +81,10 @@ __global__ void warp_filter_k(const int* d_in, int* d_out, int *num_res, int n)
     {
         return;
     }
-    if(d_in[i] > 0)
+    if(d_in[gtid] > 0)
     {
         // thread which d_in[i] > 0
-        d_out[atomicAggInc(num_res)] = src[i];
+        d_out[atomicAggInc(num_res)] = d_in[gtid];
     }
 }
 
@@ -92,10 +92,7 @@ __global__ void warp_filter_k(const int* d_in, int* d_out, int *num_res, int n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
-    for(int i = 0; i < n; i++)
-        res += out[i];
-
+    float res = 0;
     if(*out != groudtruth)
         return false;
     
@@ -105,7 +102,7 @@ bool checkResult(int* out, int groudtruth, int n)
 int main()
 {
     float milliseconds = 0;
-    const int N = 25600000;
+    constexpr int N = 25600000;
     cudaSetDevice(0);
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);
@@ -126,13 +123,15 @@ int main()
     // initialize data
     for(int i = 0; i < N; i++)
     {
-        h_histogram_data[i] = i % 256;
+        h_histogram_data[i] = 1;
     }
 
-    int *groundTruth = (int*)malloc(256 * sizeof(int));
+    int groundTruth = 0;
     for(int i = 0; i < 256; i++)
     {
-        groundTruth[i] = 100000;
+        if(h_histogram_data[i] > 0){
+            groundTruth += 1;
+        }
     }
 
     cudaMemcpy(d_histogram_data, h_histogram_data, N * sizeof(int), cudaMemcpyHostToDevice);
@@ -156,7 +155,7 @@ int main()
     cudaMemcpy(h_bin_data, d_bin_data, 256 * sizeof(int), cudaMemcpyDeviceToHost);
     printf("allocated %d blocks, data counts are %d\n", gridSize, N);
 
-    bool is_right = checkResult(h_out, groundTruth, 256);
+    bool is_right = checkResult(h_bin_data, groundTruth, 256);
     if(is_right)
     {
         printf("the ans is right\n");

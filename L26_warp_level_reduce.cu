@@ -6,7 +6,7 @@
 // warp level reduce
 #define WarpSize 32;
 
-__device__ void warp_shuffle(int sum)
+__device__ int warp_shuffle(int sum)
 {
     // __shfl_down_sync: sum[tid+0] += sum[tid+16]
     sum += __shfl_down_sync(0xffffffff, sum, 16); // 0-16, 1-17, 2-18, ...
@@ -55,7 +55,7 @@ __global__ void warp_level_reduce(const int* d_in, int* d_out, size_t n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
+    float res = 0;
     for(int i = 0; i < n; i++)
         res += out[i];
 
@@ -68,7 +68,7 @@ bool checkResult(int* out, int groudtruth, int n)
 int main()
 {
     float milliseconds = 0;
-    const int N = 25600000;
+    constexpr int N = 25600000;
     cudaSetDevice(0);
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);

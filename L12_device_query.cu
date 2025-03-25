@@ -23,7 +23,7 @@ int main()
         cudaSetDevice(dev);
         //initilize current device property variable
         cudaDeviceProp deviceProp;
-        cudaDeviceProperties(&deviceProp, dev);
+        cudaGetDeviceProperties(&deviceProp, dev);
 
         printf("\nDevice %d: \"%s\"\n", dev, deviceProp.name);
 
@@ -31,7 +31,7 @@ int main()
         printf("total amount of global memory: %.0f Mbytes "
                "(%llu bytes)\n",
                static_cast<float>(deviceProp.totalGlobalMem / 1048576.0f),
-               (unsigned long long)deviceProp.totalGLobalMem);
+               (unsigned long long)deviceProp.totalGlobalMem);
         
         // clock fre
         printf("GPU max clock frequenz: %.0f Mhz (%0.2f" "Ghz)\n", deviceProp.clockRate * 1e-3f, deviceProp.clockRate * 1e-6f);

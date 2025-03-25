@@ -76,7 +76,7 @@ __global__ void reduce_v4(const int* d_in, int* d_out, size_t n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
+    float res = 0;
     for(int i = 0; i < n; i++)
         res += out[i];
 

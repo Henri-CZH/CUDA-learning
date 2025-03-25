@@ -7,7 +7,7 @@
 
  // GPU peak performance measurement
 
- __global__ void gpu_peak_measure(float *start, float *stop, float *d_x, float *d_y, float *result){
+ __global__ void gpu_peak_measure(int *start, int *stop, float *d_x, float *d_y, float *result){
     // global thread id
     int gtid = threadIdx.x + blockDim.x * blockIdx.x;
     
@@ -22,7 +22,7 @@
     
     int start_clock = 0;
     // start to record FMA execution 
-    asm volatile("mov.u32 %0, %%clock;" :"=r(start_clock) :: memory");
+    asm volatile("mov.u32 %0, %%clock;" :"=r"(start_clock) :: "memory");
 
     // execute FMA->2 operation
     for(int i = 0; i < LOOP_NUM; i++){
@@ -36,8 +36,8 @@
     asm volatile("bar.sync 0;");
 
     // stop to record FMA execution
-    int stop_clock = 0
-    asm volatile("mov.u32 %0, %%clock;" : "=r(stop_clock) :: memory"); // move data of register "clock" to register "stop_clock", and inform compiler do not modify this command
+    int stop_clock = 0;
+    asm volatile("mov.u32 %0, %%clock;" : "=r"(stop_clock) :: "memory"); // move data of register "clock" to register "stop_clock", and inform compiler do not modify this command
 
     // store result to GPU memory
     result[gtid] = res;
@@ -68,7 +68,7 @@
     cudaMalloc((void**)&d_dst, sizeof(float) * N);
     cudaMalloc((void**)&d_res, sizeof(float) * N);
 
-    int *d_start, *d_stop
+    int *d_start, *d_stop;
     cudaMalloc((void**)&d_start, sizeof(int) * N);
     cudaMalloc((void**)&d_stop, sizeof(int) * N);
 
@@ -82,14 +82,14 @@
     dim3 block(1024); // 1024 threads
 
     // launch cuda kernel
-    gpu_peak_measure<<<grid, block>>>(float *d_start, float *d_stop, float *d_src, float *d_dst, float *d_res);
+    gpu_peak_measure<<<grid, block>>>(d_start, d_stop, d_src, d_dst, d_res);
 
     // store data from GPU to CPU
     cudaMemcpy(h_start, d_start, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_stop, d_dtop, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_stop, d_stop, sizeof(int), cudaMemcpyDeviceToHost);
 
     // postprocessing GPU peak performance
-    cudaDevice props;
+    cudaDeviceProp props;
     cudaGetDeviceProperties(&props, 0);
     float flops = LOOP_NUM * 4 * 2 * N / (h_start[0] - h_stop[0]); // FLOPS per SM
     printf("FPLOS: .2f\n", flops);

@@ -20,7 +20,7 @@ struct MaskScaleElementwiseAddFunctor{
     const uint8_t *_mask_tensor;
     const T *_add_val;
     float _scale;
-}
+};
 
 
 template<int bias_size, typename FUNCTOR, typename T>

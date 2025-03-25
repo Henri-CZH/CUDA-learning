@@ -9,14 +9,13 @@ __global__ void histogram(const int* d_histogram_data, int* d_bin_data, int n)
     atomicAdd(&d_bin_data[d_histogram_data[gtid]], 1); // forces threads to serially execute, and not make sure the execution sequence
 }
 
-bool checkResult(int* out, int groudtruth, int n)
+bool checkResult(int* out, int* groudtruth, int n)
 {   
-    float res = 0
-    for(int i = 0; i < n; i++)
-        res += out[i];
-
-    if(*out != groudtruth)
-        return false;
+    float res = 0;
+    for(int i = 0; i < n; i++){
+        if(out[i] != groudtruth[i])
+            return false;
+    }
     
     return true;
 }
@@ -75,7 +74,7 @@ int main()
     cudaMemcpy(h_bin_data, d_bin_data, 256 * sizeof(int), cudaMemcpyDeviceToHost);
     printf("allocated %d blocks, data counts are %d\n", gridSize, N);
 
-    bool is_right = checkResult(h_out, groundTruth, 256);
+    bool is_right = checkResult(h_bin_data, groundTruth, 256);
     if(is_right)
     {
         printf("the ans is right\n");

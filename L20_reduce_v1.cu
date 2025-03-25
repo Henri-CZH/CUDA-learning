@@ -27,7 +27,7 @@ __global__ void reduce_v1(const int* d_in, int* d_out, size_t n)
         // if(s < blockDim.x)
         //     smem[s] += smem[s + idx];
 
-        syncthreads();
+        __syncthreads();
     }
 
     // all (N / blockSize) block's threads have finished
@@ -37,7 +37,7 @@ __global__ void reduce_v1(const int* d_in, int* d_out, size_t n)
 
 bool checkResult(int* out, int groudtruth, int n)
 {   
-    float res = 0
+    float res = 0;
     for(int i = 0; i < n; i++)
         res += out[i];
 

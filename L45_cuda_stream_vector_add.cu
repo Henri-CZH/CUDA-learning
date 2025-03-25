@@ -16,7 +16,7 @@
 
 void vector_add_cpu(float *h_x, float *h_y, float *h_z_cpu, const int N){
     for(int i = 0; i < N; i++){
-        h_z_cpu[i] = d_x[i] + d_y[i];
+        h_z_cpu[i] = h_x[i] + h_y[i];
     }
 }
 
@@ -47,8 +47,8 @@ int main(){
 
     // initialize src, dst
     for(int i = 0; i < N; i++){
-        h_src[i] = 1;
-        h_dst[i] = 1;
+        h_x[i] = 1;
+        h_y[i] = 1;
     }
 
     // allocate GPU memory to x, y, z
@@ -75,14 +75,14 @@ int main(){
         int start_per_stream = i * num_per_stream;
         
         // copy data from CPU to GPU
-        cudaMemcpyAsynchnc(d_x + start_per_stream, hx + start_per_stream, size_per_stream, cudaMemcpyHostToDevice, streams[i]);
-        cudaMemcpyAsynchnc(d_y + start_per_stream, hy + start_per_stream, size_per_stream, cudaMemcpyHostToDevice, streams[i]);
+        cudaMemcpyAsync(d_x + start_per_stream, h_x + start_per_stream, size_per_stream, cudaMemcpyHostToDevice, streams[i]);
+        cudaMemcpyAsync(d_y + start_per_stream, h_y + start_per_stream, size_per_stream, cudaMemcpyHostToDevice, streams[i]);
 
         // launch cuda kernel
-        vector_add<<<grid, block, streams[i]>>>(d_x + start_per_stream, d_y + start_per_stream, d_z + start_per_stream, num_per_stream);
+        vector_add<<<grid, block, 0, streams[i]>>>(d_x + start_per_stream, d_y + start_per_stream, d_z + start_per_stream, num_per_stream);
 
         // store data from GPU to CPU
-        cudaMemcpyAsynchnc(h_z + start_per_stream, d_z + start_per_stream, size_per_stream, cudaMemcpyDeviceToHost, streams[i]);
+        cudaMemcpyAsync(h_z + start_per_stream, d_z + start_per_stream, size_per_stream, cudaMemcpyDeviceToHost, streams[i]);
     }
     
     cudaDeviceSynchronize(); // synchronize all stream
@@ -95,7 +95,7 @@ int main(){
     bool is_right = check_right(h_z_cpu, h_z, N);
 
     // destroy stream
-    for(int = 1; i < num_streams; i++){
+    for(int i = 1; i < num_streams; i++){
         cudaStreamDestroy(streams[i]);
         printf("destroying %d th stream\n", i);
     }
