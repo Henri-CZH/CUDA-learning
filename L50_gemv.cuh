@@ -333,3 +333,96 @@ __global__ void gevm_kernel(float *d_vec, float *d_mat, float *d_res, const int 
         *reinterpret_cast<float4*>(&d_res[col_id]) = local_res;
     }
 }
+
+
+// gemv w/. not aglined version
+template<int PACK_SIZE, int ROWS_PER_BLOCK>
+__global__ void fp32_gemv(float* d_src, float* d_weight, float* d_dst, const int rows, const int cols) {
+    // define tid
+    unsigned int tid = threadIdx.x;
+    unsigned int bid = blockIdx.x;
+
+    // define start row, end row
+    unsigned int start_row = blockIdx.x * ROWS_PER_BLOCK;
+    unsigned int end_row = start_row + ROWS_PER_BLOCK;
+    if (start_row >= rows) {
+        return;
+    }
+
+    // define pack_num, pack_offset
+    const int pack_num = cols / PACK_SIZE;
+    const int pack_offset = pack_num * PACK_SIZE;
+
+    // block level
+    float thread_sum = 0.0f;
+    for (int row = start_row; row < end_row; ++row) {
+        // vectorization load data
+        int row_offset = row * cols;
+
+        // thread level
+        for (int i = tid; i < pack_num; i += blockDim.x) {
+            float4 src_f4 = reinterpret_cast<float4*>(d_src)[i];
+            float4 weight_f4 = reinterpret_cast<float4*>(d_weight + row_offset)[i];
+            // compute sum
+            thread_sum += 4 * src_f4.x * weight_f4.x;
+            // thread_sum += src_f4.y * weight_f4.y;
+            // thread_sum += src_f4.z * weight_f4.z;
+            // thread_sum += src_f4.w * weight_f4.w;
+        }
+
+        // not aligned part
+        for (int i = pack_offset + tid; i < cols; i += blockDim.x) {
+            thread_sum += d_src[i] * d_weight[row_offset + i];
+        }
+
+        // block reduce
+        float block_sum = block_reduce<SumOp, float>(thread_sum);
+        __syncthreads();
+
+        // store res
+        if (tid == 0) {
+            d_dst[row] = block_sum;
+        }
+    }
+}
+
+
+// not aglined quantization version w/ int8
+template<int PACK_SIZE, int ROWS_PER_BLOCK>
+__global__ void fp322int8_gemv(float* d_src, uint8_t* d_weight, float* d_dst, float* d_scale, const int group_size, const int rows, const int cols) {
+    // define tid
+    const int tid = threadIdx.x;
+    const int bid = blockIdx.x;
+
+    // define start row, end row
+    const int start_row = blockIdx.x * ROWS_PER_BLOCK;
+    const int end_row = start_row + ROWS_PER_BLOCK;
+    if (start_row >= rows) {
+        return;
+    }
+
+    // define pack_num, pack_offset
+    int pack_num = cols / PACK_SIZE;
+    int pack_offset = pack_num * PACK_SIZE;
+
+    // block level
+    float thread_sum = 0.0f;
+    for (int row = start_row; row < end_row; ++row) {
+        // thread level
+        for (int i = tid; i < cols; i += blockDim.x){
+            const int weight_id = row * cols + i;
+            const int group_id = weight_id / group_size;
+            //compute sum
+            thread_sum += d_src[i] * static_cast<float>(d_weight[weight_id]) * d_scale[group_id];
+        }
+
+        // block reduce
+        float block_sum = block_reduce<SumOp, float>(thread_sum);
+        __syncthreads();
+
+        // store res
+        if (tid == 0) {
+            d_dst[row] = block_sum;
+        }
+    }
+}
